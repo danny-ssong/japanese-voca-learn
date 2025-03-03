@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/_components/auth-provider";
 import { AdminSongList } from "@/app/admin/_components/admin-song-list";
 import { toast } from "sonner";
-import { getUser } from "./_lib/user-service";
+import { getUser } from "../_lib/user-api";
 
 export default function AdminPage() {
   const [isAdmin, setIsAdmin] = useState(false);

@@ -10,9 +10,9 @@ import { toast } from "sonner";
 import { useAuth } from "@/app/_components/auth-provider";
 import type { Song, Word } from "@/types";
 import { WordExport } from "@/app/admin/_components/word-export";
-import { fetchWords, addWord, updateWord, deleteWord, moveWord, bulkImportWords } from "@/app/admin/_lib/word-service";
-import { fetchSongById } from "@/app/admin/_lib/song-service";
-import { getUser } from "../../_lib/user-service";
+import { fetchWords, addWord, updateWord, deleteWord, moveWord, bulkImportWords } from "@/app/_lib/word-api";
+import { fetchSongById } from "@/app/_lib/song-api";
+import { getUser } from "../../../_lib/user-api";
 
 export default function AdminSongWordsPage() {
   const [song, setSong] = useState<Song | null>(null);

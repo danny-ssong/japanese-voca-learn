@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import type { Song } from "@/types";
-import { fetchSongs, addSong, updateSong, deleteSong } from "@/app/admin/_lib/song-service";
+import { fetchSongs, addSong, updateSong, deleteSong } from "@/app/_lib/song-api";
 
 export function AdminSongList() {
   const [songs, setSongs] = useState<Song[]>([]);

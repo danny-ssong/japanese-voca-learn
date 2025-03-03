@@ -1,7 +1,7 @@
 import LearnClient from "./_components/learn-client";
 import { HomeButton } from "./_components/home-button";
-import { fetchSongs } from "@/app/admin/_lib/song-service";
-import { fetchWords } from "@/app/admin/_lib/word-service";
+import { fetchSongs } from "@/app/_lib/song-api";
+import { fetchWords } from "@/app/_lib/word-api";
 
 export const revalidate = 3600; // 1시간마다 재검증
 

@@ -1,6 +1,6 @@
 import { SongCardList } from "@/app/_components/song-card-list";
 import { Header } from "@/app/_components/header";
-import { fetchSongs } from "@/app/admin/_lib/song-service";
+import { fetchSongs } from "@/app/_lib/song-api";
 
 export default async function HomePage() {
   const { data: songsData, error } = await fetchSongs();

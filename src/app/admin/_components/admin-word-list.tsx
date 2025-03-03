@@ -6,8 +6,8 @@ import type { Song, Word } from "@/types";
 import { WordForm } from "@/app/admin/_components/word-form";
 import { WordCard } from "@/app/admin/_components/word-card";
 import { WordJsonImport } from "@/app/admin/_components/word-json-import";
-import { fetchSongs } from "@/app/admin/_lib/song-service";
-import { fetchWords, deleteWord, moveWord, fetchAllWords } from "@/app/admin/_lib/word-service";
+import { fetchSongs } from "@/app/_lib/song-api";
+import { fetchWords, deleteWord, moveWord, fetchAllWords } from "@/app/_lib/word-api";
 
 export function AdminWordList() {
   const [songs, setSongs] = useState<Song[]>([]);
