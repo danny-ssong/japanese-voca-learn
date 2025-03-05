@@ -44,7 +44,7 @@ export async function addSong(newSong: Partial<Song>) {
       toast.error("제목 필수", {
         description: "노래 제목을 입력해주세요.",
       });
-      return { success: false, error: new Error("제목이 필요합니다") };
+      return { success: false, error: new Error("제목이 필요합니다"), songId: null };
     }
 
     // 중복 제목 확인
@@ -59,15 +59,19 @@ export async function addSong(newSong: Partial<Song>) {
       toast.error("중복된 제목", {
         description: "이미 동일한 제목의 노래가 존재합니다.",
       });
-      return { success: false, error: new Error("중복된 제목입니다") };
+      return { success: false, error: new Error("중복된 제목입니다"), songId: null };
     }
 
-    const { data, error } = await supabase.from("song").insert({
-      title: newSong.title,
-      title_korean: newSong.title_korean || null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
+    const { data, error } = await supabase
+      .from("song")
+      .insert({
+        title: newSong.title,
+        title_korean: newSong.title_korean || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
 
     if (error) throw error;
 
@@ -75,13 +79,13 @@ export async function addSong(newSong: Partial<Song>) {
       description: "새 노래가 추가되었습니다.",
     });
 
-    return { success: true, data, error: null };
+    return { success: true, songId: data?.id, error: null };
   } catch (error) {
     console.error("노래 추가 실패:", error);
     toast.error("노래 추가 실패", {
       description: "노래를 추가하는 중 오류가 발생했습니다.",
     });
-    return { success: false, data: null, error };
+    return { success: false, songId: null, error };
   }
 }
 
@@ -92,7 +96,7 @@ export async function updateSong(editingSong: Song) {
       toast.error("제목 필수", {
         description: "노래 제목을 입력해주세요.",
       });
-      return { success: false, error: new Error("제목이 필요합니다") };
+      return { success: false, error: new Error("제목이 필요합니다"), songId: null };
     }
 
     // 중복 제목 확인 (자기 자신 제외)
@@ -108,7 +112,7 @@ export async function updateSong(editingSong: Song) {
       toast.error("중복된 제목", {
         description: "이미 동일한 제목의 노래가 존재합니다.",
       });
-      return { success: false, error: new Error("중복된 제목입니다") };
+      return { success: false, error: new Error("중복된 제목입니다"), songId: null };
     }
 
     const { error } = await supabase
@@ -126,13 +130,13 @@ export async function updateSong(editingSong: Song) {
       description: "노래 정보가 수정되었습니다.",
     });
 
-    return { success: true, error: null };
+    return { success: true, songId: editingSong.id, error: null };
   } catch (error) {
     console.error("노래 수정 실패:", error);
     toast.error("노래 수정 실패", {
       description: "노래를 수정하는 중 오류가 발생했습니다.",
     });
-    return { success: false, error };
+    return { success: false, songId: null, error };
   }
 }
 
@@ -151,12 +155,12 @@ export async function deleteSong(id: string) {
       description: "노래와 관련 단어가 삭제되었습니다.",
     });
 
-    return { success: true, error: null };
+    return { success: true, songId: id, error: null };
   } catch (error) {
     console.error("노래 삭제 실패:", error);
     toast.error("노래 삭제 실패", {
       description: "노래를 삭제하는 중 오류가 발생했습니다.",
     });
-    return { success: false, error };
+    return { success: false, songId: null, error };
   }
 }

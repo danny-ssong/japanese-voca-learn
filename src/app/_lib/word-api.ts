@@ -43,18 +43,22 @@ export async function addWord(word: Partial<Word>, songId: string) {
       toast.error("필수 정보 누락", {
         description: "원어, 발음, 뜻은 필수 입력 항목입니다.",
       });
-      return { success: false, error: new Error("필수 정보가 누락되었습니다") };
+      return { success: false, error: new Error("필수 정보가 누락되었습니다"), wordId: null };
     }
 
-    const { error } = await supabase.from("word").insert({
-      song_id: songId,
-      original: word.original,
-      hiragana: word.hiragana || null,
-      pronunciation: word.pronunciation,
-      meaning: word.meaning,
-      word_type: word.word_type || "noun",
-      order: word.order || 0,
-    });
+    const { data, error } = await supabase
+      .from("word")
+      .insert({
+        song_id: songId,
+        original: word.original,
+        hiragana: word.hiragana || null,
+        pronunciation: word.pronunciation,
+        meaning: word.meaning,
+        word_type: word.word_type || "noun",
+        order: word.order || 0,
+      })
+      .select("id")
+      .single();
 
     if (error) throw error;
 
@@ -62,13 +66,13 @@ export async function addWord(word: Partial<Word>, songId: string) {
       description: "새 단어가 추가되었습니다.",
     });
 
-    return { success: true, error: null };
+    return { success: true, error: null, wordId: data?.id };
   } catch (error) {
     console.error("단어 추가 실패:", error);
     toast.error("단어 추가 실패", {
       description: "단어를 추가하는 중 오류가 발생했습니다.",
     });
-    return { success: false, error };
+    return { success: false, error, wordId: null };
   }
 }
 
@@ -252,5 +256,27 @@ export async function bulkImportWords(jsonText: string, songId: string, currentM
       description: "JSON 형식이 올바른지 확인해주세요.",
     });
     return { success: false, count: 0, error };
+  }
+}
+
+export async function findExistingWord(original: string, hiragana: string | null) {
+  const supabase = createClient();
+  try {
+    const { data, error } = await supabase
+      .from("word")
+      .select("*")
+      .eq("original", original)
+      .eq("hiragana", hiragana)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      // PGRST116는 결과가 없을 때 발생하는 에러
+      throw error;
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error("단어 검색 실패:", error);
+    return { data: null, error };
   }
 }

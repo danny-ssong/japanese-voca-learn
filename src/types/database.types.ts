@@ -9,6 +9,77 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      sentence: {
+        Row: {
+          id: string
+          meaning: string
+          order: number
+          original: string
+          pronunciation: string
+          song_id: string | null
+        }
+        Insert: {
+          id?: string
+          meaning: string
+          order: number
+          original: string
+          pronunciation: string
+          song_id?: string | null
+        }
+        Update: {
+          id?: string
+          meaning?: string
+          order?: number
+          original?: string
+          pronunciation?: string
+          song_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sentence_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "song"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sentence_word: {
+        Row: {
+          id: string
+          order: number
+          sentence_id: string | null
+          word_id: string | null
+        }
+        Insert: {
+          id?: string
+          order: number
+          sentence_id?: string | null
+          word_id?: string | null
+        }
+        Update: {
+          id?: string
+          order?: number
+          sentence_id?: string | null
+          word_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sentence_word_sentence_id_fkey"
+            columns: ["sentence_id"]
+            isOneToOne: false
+            referencedRelation: "sentence"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sentence_word_word_id_fkey"
+            columns: ["word_id"]
+            isOneToOne: false
+            referencedRelation: "word"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       song: {
         Row: {
           created_at: string | null
