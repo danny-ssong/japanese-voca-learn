@@ -25,7 +25,6 @@ export function WordForm({ songId, initialWord, onSuccess, onCancel, mode }: Wor
       pronunciation: "",
       meaning: "",
       word_type: "noun",
-      order: 0,
     }
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -50,7 +49,6 @@ export function WordForm({ songId, initialWord, onSuccess, onCancel, mode }: Wor
           pronunciation: word.pronunciation,
           meaning: word.meaning,
           word_type: word.word_type || "noun",
-          order: word.order || 0,
         });
 
         if (error) throw error;

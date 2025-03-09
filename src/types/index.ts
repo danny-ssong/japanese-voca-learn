@@ -12,10 +12,6 @@ export type Sentence = Database["public"]["Tables"]["sentence"]["Row"];
 
 export type SentenceWord = Database["public"]["Tables"]["sentence_word"]["Row"];
 
-export interface SentenceWordWithJoin {
-  id: string;
-  sentence_id: string;
-  word_id: string;
-  order: number;
+export type SentenceWordWithJoin = SentenceWord & {
   word: Word;
-}
+};

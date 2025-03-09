@@ -25,8 +25,8 @@ export function AdminSongList() {
   }, [loadSongs]);
 
   async function handleAddSong() {
-    const { success } = await addSong(newSong);
-    if (success) {
+    const songId = await addSong(newSong);
+    if (songId) {
       setNewSong({ title: "", title_korean: "" });
       loadSongs();
     }
@@ -37,8 +37,8 @@ export function AdminSongList() {
 
     const { success } = await updateSong(editingSong);
     if (success) {
+      setSongs((prevSongs) => prevSongs.map((song) => (song.id === editingSong.id ? editingSong : song)));
       setEditingSong(null);
-      loadSongs();
     }
   }
 

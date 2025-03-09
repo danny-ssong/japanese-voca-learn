@@ -10,9 +10,10 @@ import { toast } from "sonner";
 import { useAuth } from "@/app/_components/auth-provider";
 import type { Song, Word } from "@/types";
 import { WordExport } from "@/app/admin/_components/word-export";
-import { fetchWords, addWord, updateWord, deleteWord, moveWord, bulkImportWords } from "@/app/_lib/word-api";
+import { fetchWords, addWord, updateWord, deleteWord } from "@/app/_lib/word-api";
 import { fetchSongById } from "@/app/_lib/song-api";
 import { getUser } from "../../../_lib/user-api";
+import { saveLyricsWithSong } from "@/app/_lib/lyrics-api";
 
 export default function AdminSongWordsPage() {
   const [song, setSong] = useState<Song | null>(null);
@@ -24,7 +25,6 @@ export default function AdminSongWordsPage() {
     pronunciation: "",
     meaning: "",
     word_type: "noun",
-    order: 0,
   });
   const [editingWord, setEditingWord] = useState<Word | null>(null);
   const [jsonInput, setJsonInput] = useState<string>("");
@@ -92,10 +92,9 @@ export default function AdminSongWordsPage() {
     }
 
     // 현재 단어 개수를 기준으로 order 값 설정
-    const order = words.length > 0 ? Math.max(...words.map((w) => w.order)) + 1 : 0;
-    const wordToAdd = { ...newWord, order, song_id: songId };
+    const wordToAdd = { ...newWord, song_id: songId };
 
-    const { success } = await addWord(wordToAdd, songId);
+    const { success } = await addWord(wordToAdd);
 
     if (success) {
       setNewWord({
@@ -104,7 +103,6 @@ export default function AdminSongWordsPage() {
         pronunciation: "",
         meaning: "",
         word_type: "noun",
-        order: 0,
       });
       fetchWordList();
     }
@@ -140,17 +138,8 @@ export default function AdminSongWordsPage() {
     }
   }
 
-  async function handleMoveWord(id: string, direction: "up" | "down") {
-    const { success } = await moveWord(words, id, direction);
-
-    if (success) {
-      fetchWordList();
-    }
-  }
-
   async function handleBulkImport(jsonText: string) {
-    const maxOrder = words.length > 0 ? Math.max(...words.map((w) => w.order)) : -1;
-    const { success } = await bulkImportWords(jsonText, songId, maxOrder);
+    const { success } = await saveLyricsWithSong(JSON.parse(jsonText) || {});
 
     if (success) {
       fetchWordList();
@@ -266,7 +255,6 @@ export default function AdminSongWordsPage() {
           <Button onClick={() => handleBulkImport(jsonInput)}>일괄 추가</Button>
         </div>
       </div>
-
       <div>
         <WordExport words={words} />
       </div>
@@ -381,7 +369,11 @@ export default function AdminSongWordsPage() {
                         ? "동사"
                         : word.word_type === "adjective"
                         ? "형용사"
-                        : "조사"}
+                        : word.word_type === "adverb"
+                        ? "부사"
+                        : word.word_type === "particle"
+                        ? "조사"
+                        : ""}
                     </span>
                   </div>
                   <p className="mb-1">
@@ -398,24 +390,6 @@ export default function AdminSongWordsPage() {
                     </Button>
                     <Button variant="destructive" size="sm" onClick={() => handleDeleteWord(word.id)}>
                       삭제
-                    </Button>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => handleMoveWord(word.id, "up")}
-                      disabled={words.indexOf(word) === 0}
-                    >
-                      ↑
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => handleMoveWord(word.id, "down")}
-                      disabled={words.indexOf(word) === words.length - 1}
-                    >
-                      ↓
                     </Button>
                   </div>
                 </CardFooter>

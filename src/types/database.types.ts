@@ -170,10 +170,8 @@ export type Database = {
           hiragana: string | null
           id: string
           meaning: string
-          order: number
           original: string
           pronunciation: string | null
-          song_id: string | null
           updatedat: string | null
           word_type: string
         }
@@ -182,10 +180,8 @@ export type Database = {
           hiragana?: string | null
           id?: string
           meaning: string
-          order: number
           original: string
           pronunciation?: string | null
-          song_id?: string | null
           updatedat?: string | null
           word_type: string
         }
@@ -194,22 +190,12 @@ export type Database = {
           hiragana?: string | null
           id?: string
           meaning?: string
-          order?: number
           original?: string
           pronunciation?: string | null
-          song_id?: string | null
           updatedat?: string | null
           word_type?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "word_song_id_fkey"
-            columns: ["song_id"]
-            isOneToOne: false
-            referencedRelation: "song"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {

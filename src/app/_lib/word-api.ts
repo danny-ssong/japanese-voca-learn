@@ -1,77 +1,84 @@
 import { createClient } from "@/util/supabase/client";
 import { Word } from "@/types";
-import { toast } from "sonner";
 
-export async function fetchWords(songId: string) {
+export async function fetchWords(songId: string): Promise<{ data: Word[]; error: Error | null }> {
   const supabase = createClient();
   try {
-    const { data, error } =
-      songId === "all"
-        ? await supabase.from("word").select("*").order("order", { ascending: true })
-        : await supabase.from("word").select("*").eq("song_id", songId).order("order", { ascending: true });
+    if (songId === "all") {
+      const { data, error } = await supabase.from("word").select("*");
+      return { data: data || [], error: error || null };
+    }
+
+    // sentence_word를 통해 노래에 속한 단어들을 가져옴
+    const { data: sentenceIds } = await supabase.from("sentence").select("id").eq("song_id", songId);
+
+    const { data, error } = await supabase
+      .from("sentence_word")
+      .select(
+        `
+        word:word_id (*)
+      `
+      )
+      .in("sentence_id", sentenceIds?.map((row) => row.id) || [])
+      .order("order");
 
     if (error) throw error;
-    return { data: data || [], error: null };
+
+    const uniqueWords = [
+      ...new Map(
+        data
+          .map((item) => ({
+            word: Array.isArray(item.word) ? item.word[0] : item.word, // word가 배열이면 첫 번째 요소를 사용
+          }))
+          .filter((item) => item.word) // null 체크
+          .map((item) => [item.word.id, item.word])
+      ).values(),
+    ];
+    return { data: uniqueWords, error: null };
   } catch (error) {
     console.error("단어 목록 불러오기 실패:", error);
-    toast.error("단어 목록 불러오기 실패", {
-      description: "단어 목록을 불러오는 중 오류가 발생했습니다.",
-    });
-    return { data: [], error };
+    return { data: [], error: error as Error };
   }
 }
 
 export async function fetchAllWords() {
   const supabase = createClient();
   try {
-    const { data, error } = await supabase.from("word").select("*").order("order", { ascending: true });
+    const { data, error } = await supabase.from("word").select("*");
     if (error) throw error;
     return { data: data || [], error: null };
   } catch (error) {
     console.error("단어 목록 불러오기 실패:", error);
-    toast.error("단어 목록 불러오기 실패", {
-      description: "단어 목록을 불러오는 중 오류가 발생했습니다.",
-    });
     return { data: [], error };
   }
 }
 
-export async function addWord(word: Partial<Word>, songId: string) {
+export async function addWord(word: Partial<Word>) {
   const supabase = createClient();
   try {
     if (!word.original || !word.pronunciation || !word.meaning) {
-      toast.error("필수 정보 누락", {
-        description: "원어, 발음, 뜻은 필수 입력 항목입니다.",
-      });
+      console.log("필수 정보가 누락되었습니다");
+      console.log(word);
       return { success: false, error: new Error("필수 정보가 누락되었습니다"), wordId: null };
     }
 
     const { data, error } = await supabase
       .from("word")
       .insert({
-        song_id: songId,
         original: word.original,
         hiragana: word.hiragana || null,
         pronunciation: word.pronunciation,
         meaning: word.meaning,
         word_type: word.word_type || "noun",
-        order: word.order || 0,
       })
       .select("id")
       .single();
 
     if (error) throw error;
 
-    toast.success("단어 추가 성공", {
-      description: "새 단어가 추가되었습니다.",
-    });
-
     return { success: true, error: null, wordId: data?.id };
   } catch (error) {
     console.error("단어 추가 실패:", error);
-    toast.error("단어 추가 실패", {
-      description: "단어를 추가하는 중 오류가 발생했습니다.",
-    });
     return { success: false, error, wordId: null };
   }
 }
@@ -80,9 +87,6 @@ export async function updateWord(word: Word) {
   const supabase = createClient();
   try {
     if (!word.original || !word.pronunciation || !word.meaning) {
-      toast.error("필수 정보 누락", {
-        description: "원어, 발음, 뜻은 필수 입력 항목입니다.",
-      });
       return { success: false, error: new Error("필수 정보가 누락되었습니다") };
     }
 
@@ -99,16 +103,9 @@ export async function updateWord(word: Word) {
 
     if (error) throw error;
 
-    toast.success("단어 수정 성공", {
-      description: "단어 정보가 수정되었습니다.",
-    });
-
     return { success: true, error: null };
   } catch (error) {
     console.error("단어 수정 실패:", error);
-    toast.error("단어 수정 실패", {
-      description: "단어를 수정하는 중 오류가 발생했습니다.",
-    });
     return { success: false, error };
   }
 }
@@ -116,58 +113,34 @@ export async function updateWord(word: Word) {
 export async function deleteWord(id: string) {
   const supabase = createClient();
   try {
+    // 1. 해당 단어가 사용된 문장 수 확인
+    const { data: usageCount, error: checkError } = await supabase
+      .from("sentence_word")
+      .select("sentence_id", { count: "exact" })
+      .eq("word_id", id);
+
+    if (checkError) throw checkError;
+
+    // 2. 단어가 사용 중이면 삭제 방지
+    if (usageCount && usageCount.length > 0) {
+      return {
+        success: false,
+        error: new Error(`이 단어는 ${usageCount.length}개의 문장에서 사용 중입니다. 삭제할 수 없습니다.`),
+      };
+    }
+
+    // 3. 사용되지 않는 경우에만 단어 삭제
     const { error } = await supabase.from("word").delete().eq("id", id);
-
     if (error) throw error;
-
-    toast.success("단어 삭제 성공", {
-      description: "단어가 삭제되었습니다.",
-    });
 
     return { success: true, error: null };
   } catch (error) {
     console.error("단어 삭제 실패:", error);
-    toast.error("단어 삭제 실패", {
-      description: "단어를 삭제하는 중 오류가 발생했습니다.",
-    });
     return { success: false, error };
   }
 }
 
-export async function moveWord(words: Word[], id: string, direction: "up" | "down") {
-  const supabase = createClient();
-  try {
-    const wordIndex = words.findIndex((w) => w.id === id);
-    if (wordIndex === -1) return { success: false, error: new Error("단어를 찾을 수 없습니다") };
-
-    let targetIndex;
-    if (direction === "up" && wordIndex > 0) {
-      targetIndex = wordIndex - 1;
-    } else if (direction === "down" && wordIndex < words.length - 1) {
-      targetIndex = wordIndex + 1;
-    } else {
-      return { success: false, error: new Error("이동할 수 없는 위치입니다") };
-    }
-
-    const currentWord = words[wordIndex];
-    const targetWord = words[targetIndex];
-
-    // 두 단어의 순서를 서로 바꿈
-    const [currentOrder, targetOrder] = [currentWord.order, targetWord.order];
-    await supabase.from("word").update({ order: targetOrder }).eq("id", currentWord.id);
-    await supabase.from("word").update({ order: currentOrder }).eq("id", targetWord.id);
-
-    return { success: true, error: null };
-  } catch (error) {
-    console.error("단어 순서 변경 실패:", error);
-    toast.error("순서 변경 실패", {
-      description: "단어 순서를 변경하는 중 오류가 발생했습니다.",
-    });
-    return { success: false, error };
-  }
-}
-
-export async function bulkImportWords(jsonText: string, songId: string, currentMaxOrder: number) {
+export async function bulkImportWords(jsonText: string, songId: string) {
   const supabase = createClient();
 
   interface WordsJSON {
@@ -179,95 +152,65 @@ export async function bulkImportWords(jsonText: string, songId: string, currentM
 
   try {
     const data: WordsJSON = JSON.parse(jsonText);
-    const wordsToAdd: Partial<Word>[] = [];
+    const sentenceWordsToAdd: { sentence_id: string; word_id: string; order: number }[] = [];
 
-    let currentOrder = currentMaxOrder + 1;
+    // 먼저 문장 생성
+    const { data: sentence } = await supabase.from("sentence").insert({ song_id: songId }).select("id").single();
+
+    if (!sentence) throw new Error("문장 생성 실패");
+
+    let currentOrder = 0;
 
     // 각 카테고리별 단어 처리
-    if (data.nouns) {
-      wordsToAdd.push(
-        ...data.nouns.map((word) => ({
-          song_id: songId,
-          original: word.original,
-          hiragana: word.hiragana || null,
-          pronunciation: word.pronunciation,
-          meaning: word.meaning,
-          word_type: "noun" as const,
-          order: currentOrder++,
-        }))
-      );
+    const processWords = async (words: Word[], wordType: string) => {
+      for (const word of words) {
+        // 단어 추가
+        const { data: wordData } = await supabase
+          .from("word")
+          .insert({
+            original: word.original,
+            hiragana: word.hiragana || null,
+            pronunciation: word.pronunciation,
+            meaning: word.meaning,
+            word_type: wordType,
+          })
+          .select("id")
+          .single();
+
+        if (wordData) {
+          // sentence_word 관계 추가
+          sentenceWordsToAdd.push({
+            sentence_id: sentence.id,
+            word_id: wordData.id,
+            order: currentOrder++,
+          });
+        }
+      }
+    };
+
+    // 각 카테고리 처리
+    if (data.nouns) await processWords(data.nouns, "noun");
+    if (data.particles) await processWords(data.particles, "particle");
+    if (data.verbs) await processWords(data.verbs, "verb");
+    if (data.adjectives) await processWords(data.adjectives, "adjective");
+
+    // sentence_word 관계 일괄 추가
+    if (sentenceWordsToAdd.length > 0) {
+      const { error } = await supabase.from("sentence_word").insert(sentenceWordsToAdd);
+      if (error) throw error;
     }
 
-    if (data.particles) {
-      wordsToAdd.push(
-        ...data.particles.map((word) => ({
-          song_id: songId,
-          original: word.original,
-          hiragana: null,
-          pronunciation: word.pronunciation,
-          meaning: word.meaning,
-          word_type: "particle" as const,
-          order: currentOrder++,
-        }))
-      );
-    }
-
-    if (data.verbs) {
-      wordsToAdd.push(
-        ...data.verbs.map((word) => ({
-          song_id: songId,
-          original: word.original,
-          hiragana: word.hiragana || null,
-          pronunciation: word.pronunciation,
-          meaning: word.meaning,
-          word_type: "verb" as const,
-          order: currentOrder++,
-        }))
-      );
-    }
-
-    if (data.adjectives) {
-      wordsToAdd.push(
-        ...data.adjectives.map((word) => ({
-          song_id: songId,
-          original: word.original,
-          hiragana: word.hiragana || null,
-          pronunciation: word.pronunciation,
-          meaning: word.meaning,
-          word_type: "adjective" as const,
-          order: currentOrder++,
-        }))
-      );
-    }
-
-    // 일괄 추가
-    const { error } = await supabase.from("word").insert(wordsToAdd);
-
-    if (error) throw error;
-
-    toast.success("단어 일괄 추가 성공", {
-      description: `${wordsToAdd.length}개의 단어가 추가되었습니다.`,
-    });
-
-    return { success: true, count: wordsToAdd.length, error: null };
+    return { success: true, count: sentenceWordsToAdd.length, error: null };
   } catch (error) {
     console.error("단어 일괄 추가 실패:", error);
-    toast.error("단어 일괄 추가 실패", {
-      description: "JSON 형식이 올바른지 확인해주세요.",
-    });
     return { success: false, count: 0, error };
   }
 }
 
-export async function findExistingWord(original: string, hiragana: string | null) {
+export async function findExistingWord(original: string) {
   const supabase = createClient();
   try {
-    const { data, error } = await supabase
-      .from("word")
-      .select("*")
-      .eq("original", original)
-      .eq("hiragana", hiragana)
-      .single();
+    const { data, error } = await supabase.from("word").select("*").eq("original", original).single();
 
     if (error && error.code !== "PGRST116") {
       // PGRST116는 결과가 없을 때 발생하는 에러

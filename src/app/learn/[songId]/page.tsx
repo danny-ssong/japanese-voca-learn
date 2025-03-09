@@ -1,4 +1,4 @@
-import LearnClient from "./_components/learn-client";
+import LyricsLearnClient from "./_components/lyrics-learn-client";
 import { HomeButton } from "./_components/home-button";
 import { fetchSongs } from "@/app/_lib/song-api";
 import { fetchWords } from "@/app/_lib/word-api";
@@ -21,7 +21,7 @@ export default async function LearnPage({ params }: { params: tParams }) {
   return (
     <div className="container mx-auto px-4 py-8">
       <HomeButton />
-      <LearnClient initialWords={words || []} songs={songs || []} currentSongId={songId} />
+      <LyricsLearnClient initialWords={words || []} songs={songs || []} currentSongId={songId} />
     </div>
   );
 }

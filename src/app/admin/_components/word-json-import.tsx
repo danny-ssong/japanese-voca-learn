@@ -6,27 +6,19 @@ import { toast } from "sonner";
 import { createClient } from "@/util/supabase/client";
 import type { Word } from "@/types";
 
-interface WordInput {
-  original: string;
-  hiragana?: string;
-  pronounce: string;
-  meaning: string;
-}
-
 interface WordsJSON {
-  nouns?: WordInput[];
-  particles?: WordInput[];
-  verbs?: WordInput[];
-  adjectives?: WordInput[];
+  nouns?: Word[];
+  particles?: Word[];
+  verbs?: Word[];
+  adjectives?: Word[];
 }
 
 interface WordJsonImportProps {
   songId: string;
-  currentMaxOrder: number;
   onSuccess: () => void;
 }
 
-export function WordJsonImport({ songId, currentMaxOrder, onSuccess }: WordJsonImportProps) {
+export function WordJsonImport({ onSuccess }: WordJsonImportProps) {
   const [jsonInput, setJsonInput] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const supabase = createClient();
@@ -45,20 +37,15 @@ export function WordJsonImport({ songId, currentMaxOrder, onSuccess }: WordJsonI
       const data: WordsJSON = JSON.parse(jsonInput);
       const wordsToAdd: Partial<Word>[] = [];
 
-      // 현재 최대 order 값 기준으로 시작
-      let currentOrder = currentMaxOrder + 1;
-
       // 각 카테고리별 단어 처리
       if (data.nouns) {
         wordsToAdd.push(
           ...data.nouns.map((word) => ({
-            song_id: songId,
             original: word.original,
             hiragana: word.hiragana || null,
-            pronunciation: word.pronounce,
+            pronunciation: word.pronunciation,
             meaning: word.meaning,
             word_type: "noun" as const,
-            order: currentOrder++,
           }))
         );
       }
@@ -66,13 +53,11 @@ export function WordJsonImport({ songId, currentMaxOrder, onSuccess }: WordJsonI
       if (data.particles) {
         wordsToAdd.push(
           ...data.particles.map((word) => ({
-            song_id: songId,
             original: word.original,
             hiragana: null,
-            pronunciation: word.pronounce,
+            pronunciation: word.pronunciation,
             meaning: word.meaning,
             word_type: "particle" as const,
-            order: currentOrder++,
           }))
         );
       }
@@ -80,13 +65,11 @@ export function WordJsonImport({ songId, currentMaxOrder, onSuccess }: WordJsonI
       if (data.verbs) {
         wordsToAdd.push(
           ...data.verbs.map((word) => ({
-            song_id: songId,
             original: word.original,
             hiragana: word.hiragana || null,
-            pronunciation: word.pronounce,
+            pronunciation: word.pronunciation,
             meaning: word.meaning,
             word_type: "verb" as const,
-            order: currentOrder++,
           }))
         );
       }
@@ -94,13 +77,11 @@ export function WordJsonImport({ songId, currentMaxOrder, onSuccess }: WordJsonI
       if (data.adjectives) {
         wordsToAdd.push(
           ...data.adjectives.map((word) => ({
-            song_id: songId,
             original: word.original,
             hiragana: word.hiragana || null,
-            pronunciation: word.pronounce,
+            pronunciation: word.pronunciation,
             meaning: word.meaning,
             word_type: "adjective" as const,
-            order: currentOrder++,
           }))
         );
       }
@@ -134,16 +115,16 @@ export function WordJsonImport({ songId, currentMaxOrder, onSuccess }: WordJsonI
           className="flex-1 min-h-[200px] p-2 border rounded-md"
           placeholder={`{
   "nouns": [
-    { "original": "君", "hiragana": "きみ", "pronounce": "키미", "meaning": "너" }
+    { "original": "君", "hiragana": "きみ", "pronunciation": "키미", "meaning": "너" }
   ],
   "particles": [
-    { "original": "の", "pronounce": "노", "meaning": "~의" }
+    { "original": "の", "pronunciation": "노", "meaning": "~의" }
   ],
   "verbs": [
-    { "original": "生きる", "hiragana": "いきる", "pronounce": "이키루", "meaning": "살다" }
+    { "original": "生きる", "pronunciation": "이키루", "meaning": "살다" }
   ],
   "adjectives": [
-    { "original": "悪い", "hiragana": "わるい", "pronounce": "와루이", "meaning": "나쁘다" }
+    { "original": "悪い", "hiragana": "わるい", "pronunciation": "와루이", "meaning": "나쁘다" }
   ]
 }`}
           value={jsonInput}

@@ -1,6 +1,5 @@
 import { createClient } from "@/util/supabase/client";
 import { Song } from "@/types";
-import { toast } from "sonner";
 
 export async function fetchSongs() {
   const supabase = createClient();
@@ -11,9 +10,6 @@ export async function fetchSongs() {
     return { data: data || [], error: null };
   } catch (error) {
     console.error("노래 목록 불러오기 실패:", error);
-    toast.error("노래 목록 불러오기 실패", {
-      description: "노래 목록을 불러오는 중 오류가 발생했습니다.",
-    });
     return { data: [], error };
   }
 }
@@ -30,21 +26,22 @@ export async function fetchSongById(songId: string) {
     return { data, error: null };
   } catch (error) {
     console.error("노래 정보 불러오기 실패:", error);
-    toast.error("노래 정보 불러오기 실패", {
-      description: "노래 정보를 불러오는 중 오류가 발생했습니다.",
-    });
     return { data: null, error };
   }
 }
 
-export async function addSong(newSong: Partial<Song>) {
+export async function getSongId(newSong: Partial<Song>): Promise<string | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("song").select("id").eq("title", newSong.title?.trim()).single();
+  if (error) return null;
+  return data?.id || null;
+}
+
+export async function addSong(newSong: Partial<Song>): Promise<string | null> {
   const supabase = createClient();
   try {
     if (!newSong.title?.trim()) {
-      toast.error("제목 필수", {
-        description: "노래 제목을 입력해주세요.",
-      });
-      return { success: false, error: new Error("제목이 필요합니다"), songId: null };
+      return null;
     }
 
     // 중복 제목 확인
@@ -56,10 +53,7 @@ export async function addSong(newSong: Partial<Song>) {
     if (checkError) throw checkError;
 
     if (existingSongs && existingSongs.length > 0) {
-      toast.error("중복된 제목", {
-        description: "이미 동일한 제목의 노래가 존재합니다.",
-      });
-      return { success: false, error: new Error("중복된 제목입니다"), songId: null };
+      return null;
     }
 
     const { data, error } = await supabase
@@ -75,17 +69,10 @@ export async function addSong(newSong: Partial<Song>) {
 
     if (error) throw error;
 
-    toast.success("노래 추가 성공", {
-      description: "새 노래가 추가되었습니다.",
-    });
-
-    return { success: true, songId: data?.id, error: null };
+    return data?.id || null;
   } catch (error) {
     console.error("노래 추가 실패:", error);
-    toast.error("노래 추가 실패", {
-      description: "노래를 추가하는 중 오류가 발생했습니다.",
-    });
-    return { success: false, songId: null, error };
+    return null;
   }
 }
 
@@ -93,9 +80,6 @@ export async function updateSong(editingSong: Song) {
   const supabase = createClient();
   try {
     if (!editingSong || !editingSong.title.trim()) {
-      toast.error("제목 필수", {
-        description: "노래 제목을 입력해주세요.",
-      });
       return { success: false, error: new Error("제목이 필요합니다"), songId: null };
     }
 
@@ -109,9 +93,6 @@ export async function updateSong(editingSong: Song) {
     if (checkError) throw checkError;
 
     if (existingSongs && existingSongs.length > 0) {
-      toast.error("중복된 제목", {
-        description: "이미 동일한 제목의 노래가 존재합니다.",
-      });
       return { success: false, error: new Error("중복된 제목입니다"), songId: null };
     }
 
@@ -126,16 +107,9 @@ export async function updateSong(editingSong: Song) {
 
     if (error) throw error;
 
-    toast.success("노래 수정 성공", {
-      description: "노래 정보가 수정되었습니다.",
-    });
-
     return { success: true, songId: editingSong.id, error: null };
   } catch (error) {
     console.error("노래 수정 실패:", error);
-    toast.error("노래 수정 실패", {
-      description: "노래를 수정하는 중 오류가 발생했습니다.",
-    });
     return { success: false, songId: null, error };
   }
 }
@@ -143,24 +117,55 @@ export async function updateSong(editingSong: Song) {
 export async function deleteSong(id: string) {
   const supabase = createClient();
   try {
-    // 먼저 관련된 단어들 삭제
-    await supabase.from("word").delete().eq("song_id", id);
+    // 1. 이 노래의 문장들 ID 가져오기
+    const { data: songSentences } = await supabase.from("sentence").select("id").eq("song_id", id);
 
-    // 그 다음 노래 삭제
+    // 2. 이 노래의 단어들 ID 가져오기
+    const { data: songWords } = await supabase.from("word").select("id").eq("song_id", id);
+
+    if (songWords && songWords.length > 0) {
+      const wordIds = songWords.map((word) => word.id);
+
+      // 3. 이 단어들이 다른 노래의 문장들에서 사용되는지 확인
+      const { data: wordUsageInOtherSongs } = await supabase
+        .from("sentence_word")
+        .select("word_id")
+        .in("word_id", wordIds)
+        .not("sentence_id", "in", songSentences?.map((s) => s.id) || []);
+
+      // 4. 다른 문장에서 사용되지 않는 단어만 필터링
+      const uniqueWordIds = wordIds.filter(
+        (wordId) => !wordUsageInOtherSongs?.some((usage) => usage.word_id === wordId)
+      );
+
+      // 5. sentence_word 관계 삭제
+      if (songSentences) {
+        await supabase
+          .from("sentence_word")
+          .delete()
+          .in(
+            "sentence_id",
+            songSentences.map((s) => s.id)
+          );
+      }
+
+      // 6. 사용되지 않는 단어들 삭제
+      if (uniqueWordIds.length > 0) {
+        await supabase.from("word").delete().in("id", uniqueWordIds);
+      }
+    }
+
+    // 7. 노래의 문장들 삭제
+    await supabase.from("sentence").delete().eq("song_id", id);
+
+    // 8. 노래 삭제
     const { error } = await supabase.from("song").delete().eq("id", id);
 
     if (error) throw error;
 
-    toast.success("노래 삭제 성공", {
-      description: "노래와 관련 단어가 삭제되었습니다.",
-    });
-
     return { success: true, songId: id, error: null };
   } catch (error) {
     console.error("노래 삭제 실패:", error);
-    toast.error("노래 삭제 실패", {
-      description: "노래를 삭제하는 중 오류가 발생했습니다.",
-    });
     return { success: false, songId: null, error };
   }
 }

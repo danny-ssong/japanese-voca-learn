@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
-import { createClient } from "@/util/supabase/client";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/app/_components/auth-provider";
 import { toast } from "sonner";
 import { Word } from "@/types";
+import { fetchUnknownWordIds, addUnknownWord, removeUnknownWord } from "@/app/_lib/unknown-word-api";
+import { fetchWords } from "@/app/_lib/word-api";
 
 type Props = {
   songId?: string;
@@ -14,76 +15,61 @@ export function useUnknownWords({ songId, initialWords }: Props = {}) {
   const [fetchedWords, setFetchedWords] = useState<Word[]>([]);
   const [loading, setLoading] = useState(true);
   const { authUser } = useAuth();
-  const supabase = createClient();
 
   // words는 상태가 아닌 계산된 값으로 변경
   const words = initialWords || fetchedWords;
 
   // 계산된 값들
-  const unknownWords = words.filter((word) => unknownWordIds.includes(word.id) && (!songId || word.song_id === songId));
+  const unknownWords = words.filter((word) => unknownWordIds.includes(word.id));
 
   const unknownWordMap = unknownWordIds.reduce((acc: Record<string, boolean>, wordId) => {
     acc[wordId] = true;
     return acc;
   }, {});
 
-  const fetchUnknownWords = useCallback(async () => {
-    try {
-      setLoading(true);
-      let fetchedWordIds: string[] = [];
-
-      if (authUser) {
-        const { data, error } = await supabase.from("unknown_word").select("word_id").eq("user_id", authUser.id);
-
-        if (error) throw error;
-        fetchedWordIds = data.map((item) => item.word_id);
-      } else {
-        // 로컬 스토리지에서 가져오기
-        const storedUnknownWords = localStorage.getItem("unknownWords");
-        if (storedUnknownWords) {
-          fetchedWordIds = JSON.parse(storedUnknownWords);
-        }
-      }
-
-      setUnknownWordIds(fetchedWordIds);
-    } catch (error) {
-      console.error("Error fetching unknown words:", error);
-      toast.error("모르는 단어 로딩 실패");
-    } finally {
-      setLoading(false);
-    }
-  }, [supabase, authUser]);
-
-  // initialWords가 없는 경우에만 단어 데이터 가져오기
-  const fetchWords = useCallback(async () => {
-    if (initialWords) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const { data, error } = songId
-        ? await supabase.from("word").select("*").eq("song_id", songId)
-        : await supabase.from("word").select("*");
-
-      if (error) throw error;
-      setFetchedWords(data || []);
-    } catch (error) {
-      console.error("Error fetching words:", error);
-      toast.error("단어 로딩 실패");
-    } finally {
-      setLoading(false);
-    }
-  }, [songId, supabase, initialWords]);
-
+  // unknownWords 데이터 로딩
   useEffect(() => {
-    const loadData = async () => {
-      await fetchUnknownWords();
-      await fetchWords();
+    const loadUnknownWords = async () => {
+      try {
+        let fetchedWordIds: string[] = [];
+        if (authUser) {
+          const { data, error } = await fetchUnknownWordIds(authUser.id);
+          if (error) throw error;
+          fetchedWordIds = data;
+        } else {
+          const stored = localStorage.getItem("unknownWords");
+          if (stored) fetchedWordIds = JSON.parse(stored);
+        }
+        setUnknownWordIds(fetchedWordIds);
+      } catch (error) {
+        console.error("Error loading unknown words:", error);
+        toast.error("모르는 단어 목록 로딩 실패");
+      }
     };
 
-    loadData();
-  }, [fetchUnknownWords, fetchWords]);
+    loadUnknownWords();
+  }, [authUser]); // authUser가 바뀔 때만 다시 로드
+
+  // words 데이터 로딩
+  useEffect(() => {
+    const loadWordsData = async () => {
+      if (initialWords) return;
+
+      setLoading(true);
+      try {
+        const { data, error } = await fetchWords(songId || "all");
+        if (error) throw error;
+        setFetchedWords(data || []);
+      } catch (error) {
+        console.error("Error loading words:", error);
+        toast.error("단어 목록 로딩 실패");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadWordsData();
+  }, [songId, initialWords]);
 
   const handleUnknownWordChange = async (wordId: string, isUnknown: boolean) => {
     try {
@@ -92,16 +78,11 @@ export function useUnknownWords({ songId, initialWords }: Props = {}) {
       }
 
       if (authUser) {
-        if (isUnknown) {
-          const { error } = await supabase.from("unknown_word").insert({ user_id: authUser.id, word_id: wordId });
-          if (error) throw error;
-        } else {
-          const { error } = await supabase
-            .from("unknown_word")
-            .delete()
-            .match({ user_id: authUser.id, word_id: wordId });
-          if (error) throw error;
-        }
+        const { error } = isUnknown
+          ? await addUnknownWord(authUser.id, wordId)
+          : await removeUnknownWord(authUser.id, wordId);
+
+        if (error) throw error;
       } else {
         const storedUnknownWords = JSON.parse(localStorage.getItem("unknownWords") || "[]");
         const newUnknownWords = isUnknown
@@ -110,7 +91,6 @@ export function useUnknownWords({ songId, initialWords }: Props = {}) {
         localStorage.setItem("unknownWords", JSON.stringify(newUnknownWords));
       }
 
-      // 상태 업데이트
       setUnknownWordIds((prev) => (isUnknown ? [...prev, wordId] : prev.filter((id) => id !== wordId)));
 
       toast.success(isUnknown ? "단어가 추가되었습니다." : "단어가 제거되었습니다.");

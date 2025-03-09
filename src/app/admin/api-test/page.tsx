@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Textarea } from "@/components/ui/textarea";
 import { Clipboard } from "lucide-react";
 import { toast } from "sonner";
-import { saveLyricsWithSong } from "@/app/_lib/lyrics-api";
+import { CompactedLyricsData, saveLyricsWithSong } from "@/app/_lib/lyrics-api";
 
 export default function ApiTest() {
   // JSON 입력 상태
@@ -637,7 +637,7 @@ export default function ApiTest() {
   };
 
   const saveLyrics = async () => {
-    await saveLyricsWithSong(lyrics);
+    await saveLyricsWithSong(lyrics as unknown as CompactedLyricsData);
   };
 
   return (

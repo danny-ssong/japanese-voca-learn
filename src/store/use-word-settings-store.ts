@@ -10,6 +10,7 @@ export interface WordSettingsProps {
     verb: boolean;
     adjective: boolean;
     particle: boolean;
+    adverb: boolean;
   };
   showOnlyUnknown: boolean;
 }
@@ -29,6 +30,7 @@ const DEFAULT_SETTINGS: WordSettingsProps = {
     verb: true,
     adjective: true,
     particle: true,
+    adverb: true,
   },
 };
 

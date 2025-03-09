@@ -47,6 +47,8 @@ export default function UnknownWordsPage() {
                       ? "형용사"
                       : word.word_type === "particle"
                       ? "조사 "
+                      : word.word_type === "adverb"
+                      ? "부사"
                       : ""}
                   </span>
                 </div>

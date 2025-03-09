@@ -33,6 +33,7 @@ export function WordSettings() {
                   { id: "verb", label: "동사" },
                   { id: "adjective", label: "형용사" },
                   { id: "particle", label: "조사" },
+                  { id: "adverb", label: "부사" },
                 ].map(({ id, label }) => (
                   <div key={id} className="flex items-center space-x-3">
                     <Checkbox
